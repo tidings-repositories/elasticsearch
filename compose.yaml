@@ -1,0 +1,35 @@
+#elasticsearch, kibana
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.4
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - xpack.security.enabled=true
+    ports:
+      - "9200:9200"
+    networks:
+      - elk
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    command: sudo bin/elasticsearch-plugin install analysis-nori
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.0.4
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTIC_PASSWORD=${KIBANA_PASSWORD}
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+networks:
+  elk:
+
+volumes:
+  es-data:
