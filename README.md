@@ -58,6 +58,7 @@ sudo curl -SL https://github.com/docker/compose/releases/download/v2.39.1/docker
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 ```
 
+
 ## Docker Compose로 Elasticsearch, Kibana 구성하기
 
 우선은 로그 수집 및 시각화는 이후에 할 예정이기 때문에 Logstash를 제외한 Elasticsearch 및 Kibana만 Compose로 구성했습니다.
@@ -67,7 +68,7 @@ sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.29
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
@@ -80,7 +81,7 @@ services:
       - es-data:/usr/share/elasticsearch/data
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:9.0.4
+    image: docker.elastic.co/kibana/kibana:7.17.29
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
@@ -91,7 +92,7 @@ services:
       - elk
     depends_on:
       - elasticsearch
-
+  
 networks:
   elk:
 
@@ -99,7 +100,7 @@ volumes:
   es-data:
 ```
 
-이미지로 사용된 건 Docker hub 대신 Elastic에서 직접 [제공](https://www.docker.elastic.co/r/elasticsearch)하는 Docker 이미지 주소가 안정적인 버전일 것으로 생각돼 이를 이용했습니다.
+이미지로 사용된 건 Docker hub 대신 Elastic에서 직접 [제공](https://www.docker.elastic.co/r/elasticsearch)하는 Docker 이미지 주소로 사용했고, 처음엔 가장 최신의 9.0.4 버전으로 사용했는데, Kafka Connector와 호환이 안되는 문제가 있어 다운그레이드 했습니다.
 
 이 때 배포 환경에서 xpack.security를 활성화하는 것이 보안상 좋기 때문에 elasticsearch든, kibana든 접근할 때 비밀번호를 포햄해야 하는데,
 
@@ -142,7 +143,7 @@ docker restart {컨테이너 ID}
 
 ## Elasticsearch 인덱스 설정
 
-검색용 데이터는 포스트와 유저이고, 기본적으로 인덱싱을 수행하지 않도록 설정에 dynamic 옵션을 false로 설정했습니다.
+검색용 데이터는 포스트와 유저이고,  기본적으로 인덱싱을 수행하지 않도록 설정에 dynamic 옵션을 false로 설정했습니다.
 
 필요한 필드에 대해서만 명시적으로 mappings에 index: true로 선언해주는 방식으로 하여 성능 개선을 바라고 있습니다.
 
@@ -161,6 +162,12 @@ docker restart {컨테이너 ID}
         "nori_tokenizer": {
           "type": "nori_tokenizer",
           "decompound_mode": "mixed"
+        },
+        "edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 14,
+          "token_chars": ["letter", "digit"]
         }
       },
       "filter": {
@@ -180,6 +187,11 @@ docker restart {컨테이너 ID}
           "type": "custom",
           "tokenizer": "nori_tokenizer",
           "filter": ["lowercase", "edge_ngram_filter"]
+        },
+        "english_edge_ngram": {
+          "type": "custom",
+          "tokenizer": "edge_ngram_tokenizer",
+          "filter": ["lowercase"]
         }
       }
     }
@@ -189,7 +201,9 @@ docker restart {컨테이너 ID}
     "properties": {
       "userId": {
         "type": "text",
-        "index": true
+        "index": true,
+        "analyzer": "english_edge_ngram",
+        "search_analyzer": "standard"
       },
       "userName": {
         "type": "text",
@@ -204,11 +218,20 @@ docker restart {컨테이너 ID}
           "text": { "type": "text", "index": true, "analyzer": "korean" },
           "tag": { "type": "keyword", "index": true }
         }
+      },
+      "createdAt": {
+        "type": "date",
+        "format": "epoch_millis",
+        "index": true
+      },
+      "deletedAt": {
+        "type": "date",
+        "format": "epoch_millis",
+        "index": true
       }
     }
   }
 }
-
 ```
 
 ```json
@@ -224,6 +247,12 @@ docker restart {컨테이너 ID}
         "nori_tokenizer": {
           "type": "nori_tokenizer",
           "decompound_mode": "mixed"
+        },
+        "edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 14,
+          "token_chars": ["letter", "digit"]
         }
       },
       "filter": {
@@ -243,6 +272,11 @@ docker restart {컨테이너 ID}
           "type": "custom",
           "tokenizer": "nori_tokenizer",
           "filter": ["lowercase", "edge_ngram_filter"]
+        },
+        "english_edge_ngram": {
+          "type": "custom",
+          "tokenizer": "edge_ngram_tokenizer",
+          "filter": ["lowercase"]
         }
       }
     }
@@ -252,7 +286,9 @@ docker restart {컨테이너 ID}
     "properties": {
       "public_id": {
         "type": "text",
-        "index": true
+        "index": true,
+        "analyzer": "english_edge_ngram",
+        "search_analyzer": "standard"
       },
       "name": {
         "type": "text",
@@ -264,10 +300,26 @@ docker restart {컨테이너 ID}
         "type": "text",
         "index": true,
         "analyzer": "korean"
+      },
+      "created_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
+      },
+      "deleted_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
+      },
+      "banned_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
       }
     }
   }
 }
+
 ```
 
 위처럼 인덱스 설정을 json으로 만들어줬고, scp로 파일을 Elasticsearch가 실행되는 서버에 보내줬습니다.
@@ -290,4 +342,10 @@ curl -u [id]:[pwd] -X PUT "localhost:9200/post-index" \
 curl -u [id]:[pwd] -X PUT "localhost:9200/member-index" \
   -H "Content-Type: application/json" \
   -d @member_index.json
+```
+
+결과적으로 인덱스 목록을 조회했을 때 정상적으로 생성됨을 알 수 있었습니다.
+
+```bash
+curl -u [id]:[pwd] -X GET localhost:9200/_cat/indices?v
 ```
