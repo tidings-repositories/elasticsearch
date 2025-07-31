@@ -8,6 +8,12 @@
         "nori_tokenizer": {
           "type": "nori_tokenizer",
           "decompound_mode": "mixed"
+        },
+        "edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 14,
+          "token_chars": ["letter", "digit"]
         }
       },
       "filter": {
@@ -27,6 +33,11 @@
           "type": "custom",
           "tokenizer": "nori_tokenizer",
           "filter": ["lowercase", "edge_ngram_filter"]
+        },
+        "english_edge_ngram": {
+          "type": "custom",
+          "tokenizer": "edge_ngram_tokenizer",
+          "filter": ["lowercase"]
         }
       }
     }
@@ -36,7 +47,9 @@
     "properties": {
       "public_id": {
         "type": "text",
-        "index": true
+        "index": true,
+        "analyzer": "english_edge_ngram",
+        "search_analyzer": "standard"
       },
       "name": {
         "type": "text",
@@ -48,6 +61,21 @@
         "type": "text",
         "index": true,
         "analyzer": "korean"
+      },
+      "created_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
+      },
+      "deleted_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
+      },
+      "banned_at": {
+        "type": "date",
+        "format": "strict_date_optional_time",
+        "index": true
       }
     }
   }
