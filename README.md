@@ -2,7 +2,7 @@
 
 ## Docker 구성
 
-뜬금없이 Docker를 설치하는 이유는, Elasticsearch가 동작할 서버 인스턴스에서 ELK Stack (Elasticsearch + Logstash + Kibana)를 함께 실행할 예정이라, 서버 리스소 경쟁을 하지 않도록 격리하기 위함입니다.
+뜬금없이 Docker를 설치하는 이유는, Elasticsearch가 동작할 서버 인스턴스에서 ELK Stack (Elasticsearch + Logstash + Kibana)를 함께 실행할 예정이라, 서버 리소스 경쟁을 하지 않도록 격리하기 위함입니다.
 
 ### 디스크 스왑 공간 할당
 
