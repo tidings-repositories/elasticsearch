@@ -2,7 +2,8 @@
 
 services:
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.29
+    build: .
+    image: es:7.17.29-nori
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
@@ -13,7 +14,6 @@ services:
       - elk
     volumes:
       - es-data:/usr/share/elasticsearch/data
-    command: sudo bin/elasticsearch-plugin install analysis-nori
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.29
